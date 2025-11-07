@@ -54,7 +54,7 @@ if __name__ == '__main__':
 	try:
 		while True:
 			time.sleep(200 / 1000)
-			messages = consumer.consume(4, timeout=1)
+			messages = consumer.consume(3, timeout=1)
 			threads = []
 			if messages is None:
 				continue
