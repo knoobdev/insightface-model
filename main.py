@@ -22,7 +22,7 @@ KAFKA_CONFIG = {
 	'HOST': os.environ.get('KAFKA_HOST', '192.168.1.209:9093'),
 	'TOPIC': os.environ.get('KAFKA_TOPIC', 'test-topic'),
 	'GROUP_ID': os.environ.get('KAFKA_GROUP_ID', 'ahv-model'),
-	'CONSUME_MESSAGE_SIZE': 3
+	'CONSUME_MESSAGE_SIZE': os.environ.get('KAFKA_CONSUME_MESSAGE_SIZE', 3),
 }
 
 app = FaceAnalysis()
