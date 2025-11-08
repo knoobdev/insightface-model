@@ -17,16 +17,19 @@ assert insightface.__version__>='0.7'
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "inswapper_128.onnx"
-KAFKA_TOPIC = "test-topic"
-KAFKA_GROUP_ID = "ahv-models"
-KAFKA_HOST = "103.253.21.134:9093"
+MODEL_NAME_DEFAULT = 'inswapper_128.onnx'
+KAFKA_CONFIG = {
+	'HOST': os.environ.get('KAFKA_HOST', '192.168.1.209:9093'),
+	'TOPIC': os.environ.get('KAFKA_TOPIC', 'test-topic'),
+	'GROUP_ID': os.environ.get('KAFKA_GROUP_ID', 'ahv-model'),
+	'CONSUME_MESSAGE_SIZE': 3
+}
 
 app = FaceAnalysis()
 app.prepare(ctx_id=0)
-swapper = insightface.model_zoo.get_model(MODEL_NAME, download=False, download_zip=False)
+swapper = insightface.model_zoo.get_model(MODEL_NAME_DEFAULT, download=False, download_zip=False)
 
-def process_image(message):
+def handle_message(message):
 	logger.error(f'Received message: {message.value().decode("utf-8")} from topic {message.topic()} partition {message.partition()}')
 	start_time = time.time()
 	img = ins_get_image('t1')
@@ -44,17 +47,17 @@ def process_image(message):
 
 if __name__ == '__main__':
 	consumer = Consumer({
-			'bootstrap.servers': KAFKA_HOST,
-			'group.id': KAFKA_GROUP_ID,
+			'bootstrap.servers': KAFKA_CONFIG['HOST'],
+			'group.id': KAFKA_CONFIG['GROUP_ID'],
 			'auto.offset.reset': 'earliest',
 			'compression.type': 'gzip'
 	})
 
-	consumer.subscribe([KAFKA_TOPIC])
+	consumer.subscribe([KAFKA_CONFIG['TOPIC']])
 	try:
 		while True:
 			time.sleep(200 / 1000)
-			messages = consumer.consume(3, timeout=1)
+			messages = consumer.consume(KAFKA_CONFIG['CONSUME_MESSAGE_SIZE'], timeout=1)
 			threads = []
 			if messages is None:
 				continue
@@ -77,20 +80,11 @@ if __name__ == '__main__':
 						else:
 								logger.error(f'Error: {message.error()}')
 						continue
-				thread = threading.Thread(target=process_image, args=(message,))
+				thread = threading.Thread(target=handle_message, args=(message,))
 				threads.append(thread)
 				thread.start()
 			for thread in threads:
 				thread.join()
-			# logger.error(f'Messages count: {len(messages)}')
-			# img = ins_get_image('t1')
-			# faces = app.get(img)
-			# faces = sorted(faces, key = lambda x : x.bbox[0])
-			# source_face = faces[0]
-			# res = img.copy()
-			# for face in faces:
-			# 		res = swapper.get(res, face, source_face, paste_back=True)
-			# cv2.imwrite("./t1_swapped.jpg", res)
 	except KeyboardInterrupt:
 		pass
 	finally:
